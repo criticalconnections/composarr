@@ -1,0 +1,40 @@
+# Binaries
+composarr
+composarr.exe
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Go
+/vendor/
+go.work
+
+# Frontend
+web/node_modules/
+web/dist/
+
+# Runtime data
+data/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# Test
+coverage.out
+*.test
+
+# Build
+/bin/
+/tmp/

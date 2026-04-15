@@ -1,0 +1,18 @@
+services:
+  composarr:
+    build: .
+    image: composarr:latest
+    container_name: composarr
+    ports:
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - composarr_data:/data
+    environment:
+      - COMPOSARR_PORT=8080
+      - COMPOSARR_LOG_LEVEL=info
+      - TZ=America/New_York
+    restart: unless-stopped
+
+volumes:
+  composarr_data:
