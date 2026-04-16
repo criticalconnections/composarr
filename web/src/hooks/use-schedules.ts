@@ -9,6 +9,14 @@ export function useSchedules() {
   })
 }
 
+export function useUpcomingWindows(limit = 5) {
+  return useQuery({
+    queryKey: ['schedules', 'upcoming', limit],
+    queryFn: () => schedulesApi.getUpcomingWindows(limit),
+    refetchInterval: 30_000,
+  })
+}
+
 export function useSchedulesByStack(stackId: string) {
   return useQuery({
     queryKey: ['stacks', stackId, 'schedules'],

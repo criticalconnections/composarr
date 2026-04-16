@@ -112,6 +112,7 @@ func NewRouter(deps RouterDeps) *gin.Engine {
 		schedules := v1.Group("/schedules")
 		{
 			schedules.GET("", schedHandler.ListAll)
+			schedules.GET("/upcoming", schedHandler.UpcomingWindows)
 			schedules.GET("/:id", schedHandler.Get)
 			schedules.PUT("/:id", schedHandler.Update)
 			schedules.DELETE("/:id", schedHandler.Delete)

@@ -30,6 +30,16 @@ export async function getNextWindow(id: string): Promise<{ nextWindow: string }>
   return data
 }
 
+export interface UpcomingWindow {
+  schedule: Schedule
+  nextWindow: string
+}
+
+export async function getUpcomingWindows(limit = 10): Promise<UpcomingWindow[]> {
+  const { data } = await api.get<UpcomingWindow[]>(`/schedules/upcoming?limit=${limit}`)
+  return data
+}
+
 export async function listQueuedUpdates(stackId?: string): Promise<QueuedUpdate[]> {
   if (stackId) {
     const { data } = await api.get<QueuedUpdate[]>(`/stacks/${stackId}/queue`)

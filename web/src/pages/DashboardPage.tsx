@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { useStacks } from '../hooks/use-stacks'
 import { useDeployments } from '../hooks/use-deployments'
 import StatusBadge from '../components/stacks/StatusBadge'
+import UpcomingWindows from '../components/schedules/UpcomingWindows'
 
 export default function DashboardPage() {
   const { data: stacks, isLoading } = useStacks()
@@ -89,6 +90,12 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Upcoming Maintenance Windows */}
+      <div className="mt-8">
+        <h2 className="text-lg font-semibold mb-4">Upcoming Maintenance Windows</h2>
+        <UpcomingWindows />
       </div>
     </div>
   )

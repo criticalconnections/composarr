@@ -252,6 +252,47 @@ func (s *SchedulerService) NextWindow(id string) (*time.Time, error) {
 	return s.nextWindow(*sched), nil
 }
 
+// UpcomingWindow carries a schedule along with its next fire time.
+type UpcomingWindow struct {
+	Schedule   models.Schedule `json:"schedule"`
+	NextWindow time.Time       `json:"nextWindow"`
+}
+
+// UpcomingWindows returns the next fire time for every enabled schedule,
+// sorted earliest-first. Used by the dashboard widget.
+func (s *SchedulerService) UpcomingWindows(limit int) ([]UpcomingWindow, error) {
+	schedules, err := s.scheduleRepo.ListEnabled()
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]UpcomingWindow, 0, len(schedules))
+	for _, sched := range schedules {
+		next := s.nextWindow(sched)
+		if next == nil {
+			continue
+		}
+		result = append(result, UpcomingWindow{
+			Schedule:   sched,
+			NextWindow: *next,
+		})
+	}
+
+	// Sort ascending by NextWindow
+	for i := 0; i < len(result); i++ {
+		for j := i + 1; j < len(result); j++ {
+			if result[j].NextWindow.Before(result[i].NextWindow) {
+				result[i], result[j] = result[j], result[i]
+			}
+		}
+	}
+
+	if limit > 0 && len(result) > limit {
+		result = result[:limit]
+	}
+	return result, nil
+}
+
 func (s *SchedulerService) nextWindow(sched models.Schedule) *time.Time {
 	schedule, err := s.validateCron(sched.CronExpr, sched.Timezone)
 	if err != nil {

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/axism/composarr/internal/service"
@@ -107,6 +108,24 @@ func (h *ScheduleHandler) NextWindow(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"nextWindow": next})
+}
+
+// UpcomingWindows godoc
+// GET /api/v1/schedules/upcoming?limit=
+func (h *ScheduleHandler) UpcomingWindows(c *gin.Context) {
+	limit := 10
+	if l := c.Query("limit"); l != "" {
+		var parsed int
+		if _, err := fmt.Sscanf(l, "%d", &parsed); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+	upcoming, err := h.schedSvc.UpcomingWindows(limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, upcoming)
 }
 
 // QueueUpdate godoc
