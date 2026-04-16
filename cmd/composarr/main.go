@@ -54,6 +54,9 @@ func main() {
 	deployRepo := repository.NewDeploymentRepository(db.DB)
 	deployLogRepo := repository.NewDeploymentLogRepository(db.DB)
 	healthRepo := repository.NewHealthCheckRepository(db.DB)
+	scheduleRepo := repository.NewScheduleRepository(db.DB)
+	queuedRepo := repository.NewQueuedUpdateRepository(db.DB)
+	depRepo := repository.NewDependencyRepository(db.DB)
 
 	// Initialize WebSocket hub
 	hub := ws.NewHub()
@@ -67,6 +70,15 @@ func main() {
 	stackSvc := service.NewStackService(stackRepo, dockerSvc, gitSvc, cfg)
 	healthSvc := service.NewHealthService(dockerSvc, healthRepo, hub, cfg)
 	deploySvc := service.NewDeployService(cfg, stackRepo, deployRepo, deployLogRepo, dockerSvc, gitSvc, healthSvc, hub)
+	depSvc := service.NewDependencyService(depRepo, stackRepo, dockerSvc)
+	deploySvc.SetDependencyService(depSvc)
+	schedSvc := service.NewSchedulerService(cfg, scheduleRepo, queuedRepo, stackRepo, gitSvc, deploySvc)
+
+	// Start scheduler
+	if err := schedSvc.Start(); err != nil {
+		log.Warn().Err(err).Msg("failed to start scheduler")
+	}
+	defer schedSvc.Stop()
 
 	// Setup router
 	router := handler.NewRouter(handler.RouterDeps{
@@ -74,6 +86,8 @@ func main() {
 		GitSvc:        gitSvc,
 		DiffSvc:       diffSvc,
 		DeploySvc:     deploySvc,
+		SchedSvc:      schedSvc,
+		DepSvc:        depSvc,
 		DeployRepo:    deployRepo,
 		DeployLogRepo: deployLogRepo,
 		HealthRepo:    healthRepo,

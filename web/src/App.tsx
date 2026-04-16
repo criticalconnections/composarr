@@ -8,6 +8,8 @@ import VersionHistoryPage from './pages/VersionHistoryPage'
 import DeployPage from './pages/DeployPage'
 import DeploymentDetailPage from './pages/DeploymentDetailPage'
 import DeploymentsPage from './pages/DeploymentsPage'
+import SchedulesPage from './pages/SchedulesPage'
+import DependencyGraphPage from './pages/DependencyGraphPage'
 
 export default function App() {
   return (
@@ -21,6 +23,8 @@ export default function App() {
         <Route path="/stacks/:id/deploy" element={<DeployPage />} />
         <Route path="/deployments" element={<DeploymentsPage />} />
         <Route path="/deployments/:id" element={<DeploymentDetailPage />} />
+        <Route path="/schedules" element={<SchedulesPage />} />
+        <Route path="/dependencies" element={<DependencyGraphPage />} />
       </Routes>
     </AppShell>
   )

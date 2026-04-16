@@ -21,6 +21,8 @@ type RouterDeps struct {
 	GitSvc        *service.GitService
 	DiffSvc       *service.DiffService
 	DeploySvc     *service.DeployService
+	SchedSvc      *service.SchedulerService
+	DepSvc        *service.DependencyService
 	DeployRepo    *repository.DeploymentRepository
 	DeployLogRepo *repository.DeploymentLogRepository
 	HealthRepo    *repository.HealthCheckRepository
@@ -50,6 +52,8 @@ func NewRouter(deps RouterDeps) *gin.Engine {
 	stackHandler := NewStackHandler(deps.StackSvc)
 	versionHandler := NewVersionHandler(deps.StackSvc, deps.GitSvc, deps.DiffSvc)
 	deployHandler := NewDeployHandler(deps.DeploySvc, deps.DeployRepo, deps.DeployLogRepo, deps.HealthRepo)
+	schedHandler := NewScheduleHandler(deps.SchedSvc)
+	depHandler := NewDependencyHandler(deps.DepSvc)
 	wsHandler := NewWSHandler(deps.Hub)
 
 	v1 := router.Group("/api/v1")
@@ -82,6 +86,18 @@ func NewRouter(deps RouterDeps) *gin.Engine {
 			stacks.GET("/:id/diff", versionHandler.GetWorkingDiff)
 			stacks.POST("/:id/diff", versionHandler.GetWorkingDiff)
 			stacks.GET("/:id/diff/:from/:to", versionHandler.GetDiffBetween)
+
+			// Schedules and queued updates
+			stacks.GET("/:id/schedules", schedHandler.ListByStack)
+			stacks.POST("/:id/schedules", schedHandler.Create)
+			stacks.GET("/:id/queue", schedHandler.ListQueuedUpdates)
+			stacks.POST("/:id/queue", schedHandler.QueueUpdate)
+
+			// Dependencies
+			stacks.GET("/:id/dependencies", depHandler.ListDependencies)
+			stacks.POST("/:id/dependencies", depHandler.AddDependency)
+			stacks.GET("/:id/dependents", depHandler.ListDependents)
+			stacks.DELETE("/:id/dependencies/:depId", depHandler.RemoveDependency)
 		}
 
 		deployments := v1.Group("/deployments")
@@ -91,6 +107,23 @@ func NewRouter(deps RouterDeps) *gin.Engine {
 			deployments.GET("/:id/logs", deployHandler.GetDeploymentLogs)
 			deployments.GET("/:id/health", deployHandler.GetDeploymentHealth)
 			deployments.POST("/:id/cancel", deployHandler.CancelDeploy)
+		}
+
+		schedules := v1.Group("/schedules")
+		{
+			schedules.GET("", schedHandler.ListAll)
+			schedules.GET("/:id", schedHandler.Get)
+			schedules.PUT("/:id", schedHandler.Update)
+			schedules.DELETE("/:id", schedHandler.Delete)
+			schedules.GET("/:id/next", schedHandler.NextWindow)
+		}
+
+		v1.GET("/queued-updates", schedHandler.ListAllQueuedUpdates)
+		v1.DELETE("/queued-updates/:id", schedHandler.CancelQueuedUpdate)
+
+		dependencies := v1.Group("/dependencies")
+		{
+			dependencies.GET("/graph", depHandler.GetGraph)
 		}
 
 		// WebSocket

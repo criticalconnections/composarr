@@ -48,6 +48,7 @@ type DeployService struct {
 	dockerSvc      *DockerService
 	gitSvc         *GitService
 	healthSvc      *HealthService
+	depSvc         *DependencyService
 	hub            *ws.Hub
 
 	// Track in-flight deployments so they can be cancelled
@@ -76,6 +77,12 @@ func NewDeployService(
 		hub:           hub,
 		cancelFns:     make(map[string]context.CancelFunc),
 	}
+}
+
+// SetDependencyService wires the dependency service after construction.
+// This breaks an otherwise circular constructor dependency.
+func (d *DeployService) SetDependencyService(depSvc *DependencyService) {
+	d.depSvc = depSvc
 }
 
 // Deploy starts a new deployment for the stack and returns the deployment ID.
@@ -175,6 +182,15 @@ func (d *DeployService) runPipeline(ctx context.Context, stack *models.Stack, de
 	if err := d.dockerSvc.Validate(ctx, stack.Slug); err != nil {
 		d.fail(stack, dep, fmt.Sprintf("validation failed: %v", err))
 		return
+	}
+
+	// 1b. Check hard dependencies are running
+	if d.depSvc != nil {
+		d.appendLog(dep.ID, "info", "Checking dependencies...")
+		if err := d.depSvc.PreDeployCheck(ctx, stack.ID); err != nil {
+			d.fail(stack, dep, fmt.Sprintf("dependency check failed: %v", err))
+			return
+		}
 	}
 
 	// 2. Pull images

@@ -1,6 +1,7 @@
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useStack, useStackStatus, useStartStack, useStopStack, useRestartStack, useDeleteStack } from '../hooks/use-stacks'
 import StatusBadge from '../components/stacks/StatusBadge'
+import DependenciesPanel from '../components/dependencies/DependenciesPanel'
 
 export default function StackDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -105,6 +106,11 @@ export default function StackDetailPage() {
         <InfoCard label="Auto Update" value={stack.autoUpdate ? 'Enabled' : 'Disabled'} />
         <InfoCard label="Created" value={new Date(stack.createdAt).toLocaleString()} />
         <InfoCard label="Updated" value={new Date(stack.updatedAt).toLocaleString()} />
+      </div>
+
+      {/* Dependencies */}
+      <div className="mb-6">
+        <DependenciesPanel stackId={stack.id} />
       </div>
 
       {/* Containers */}

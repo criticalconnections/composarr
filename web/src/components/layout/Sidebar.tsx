@@ -4,6 +4,8 @@ const navItems = [
   { to: '/', label: 'Dashboard', icon: '⌂' },
   { to: '/stacks', label: 'Stacks', icon: '▦' },
   { to: '/deployments', label: 'Deployments', icon: '⇪' },
+  { to: '/schedules', label: 'Schedules', icon: '⌚' },
+  { to: '/dependencies', label: 'Dependencies', icon: '⇄' },
 ]
 
 export default function Sidebar() {
