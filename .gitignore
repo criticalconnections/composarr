@@ -1,6 +1,7 @@
-# Binaries
-composarr
-composarr.exe
+# Binaries (the built binary, not the source directory)
+/composarr
+/composarr.exe
+/bin/
 *.exe
 *.dll
 *.so

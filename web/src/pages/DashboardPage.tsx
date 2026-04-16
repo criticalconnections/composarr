@@ -1,14 +1,19 @@
 import { Link } from 'react-router-dom'
 import { useStacks } from '../hooks/use-stacks'
+import { useDeployments } from '../hooks/use-deployments'
 import StatusBadge from '../components/stacks/StatusBadge'
 
 export default function DashboardPage() {
   const { data: stacks, isLoading } = useStacks()
+  const { data: deployments } = useDeployments()
 
   const running = stacks?.filter((s) => s.status === 'running').length ?? 0
   const stopped = stacks?.filter((s) => s.status === 'stopped').length ?? 0
   const degraded = stacks?.filter((s) => s.status === 'degraded').length ?? 0
   const total = stacks?.length ?? 0
+
+  const recentDeployments = deployments?.slice(0, 5) ?? []
+  const stackNameMap = new Map(stacks?.map((s) => [s.id, s.name]) ?? [])
 
   return (
     <div>
@@ -22,41 +27,69 @@ export default function DashboardPage() {
         <StatCard label="Degraded" value={degraded} color="var(--color-warning)" />
       </div>
 
-      {/* Recent Stacks */}
-      <h2 className="text-lg font-semibold mb-4">Stacks</h2>
-      {isLoading ? (
-        <p className="text-[var(--color-text-muted)]">Loading...</p>
-      ) : !stacks?.length ? (
-        <div className="bg-[var(--color-surface)] rounded-lg p-8 text-center border border-[var(--color-border)]">
-          <p className="text-[var(--color-text-muted)] mb-4">No stacks yet</p>
-          <Link
-            to="/stacks"
-            className="inline-block px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg hover:bg-[var(--color-primary-hover)] transition-colors"
-          >
-            Create your first stack
-          </Link>
+      <div className="grid grid-cols-2 gap-6">
+        {/* Stacks */}
+        <div>
+          <h2 className="text-lg font-semibold mb-4">Stacks</h2>
+          {isLoading ? (
+            <p className="text-[var(--color-text-muted)]">Loading...</p>
+          ) : !stacks?.length ? (
+            <div className="bg-[var(--color-surface)] rounded-lg p-8 text-center border border-[var(--color-border)]">
+              <p className="text-[var(--color-text-muted)] mb-4">No stacks yet</p>
+              <Link
+                to="/stacks"
+                className="inline-block px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg hover:bg-[var(--color-primary-hover)] transition-colors"
+              >
+                Create your first stack
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {stacks.map((stack) => (
+                <Link
+                  key={stack.id}
+                  to={`/stacks/${stack.id}`}
+                  className="flex items-center justify-between bg-[var(--color-surface)] rounded-lg p-3 border border-[var(--color-border)] hover:border-[var(--color-primary)] transition-colors"
+                >
+                  <span className="font-medium">{stack.name}</span>
+                  <StatusBadge status={stack.status} />
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {stacks.map((stack) => (
-            <Link
-              key={stack.id}
-              to={`/stacks/${stack.id}`}
-              className="bg-[var(--color-surface)] rounded-lg p-4 border border-[var(--color-border)] hover:border-[var(--color-primary)] transition-colors"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-medium">{stack.name}</h3>
-                <StatusBadge status={stack.status} />
-              </div>
-              {stack.description && (
-                <p className="text-sm text-[var(--color-text-muted)] truncate">
-                  {stack.description}
-                </p>
-              )}
-            </Link>
-          ))}
+
+        {/* Recent Deployments */}
+        <div>
+          <h2 className="text-lg font-semibold mb-4">Recent Deployments</h2>
+          {!recentDeployments.length ? (
+            <div className="bg-[var(--color-surface)] rounded-lg p-8 text-center border border-[var(--color-border)]">
+              <p className="text-[var(--color-text-muted)]">No deployments yet</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {recentDeployments.map((d) => (
+                <Link
+                  key={d.id}
+                  to={`/deployments/${d.id}`}
+                  className="block bg-[var(--color-surface)] rounded-lg p-3 border border-[var(--color-border)] hover:border-[var(--color-primary)] transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">
+                      {stackNameMap.get(d.stackId) ?? 'Unknown stack'}
+                    </span>
+                    <span className={`text-xs ${deployStatusColor(d.status)}`}>{d.status}</span>
+                  </div>
+                  <div className="flex items-center gap-3 mt-1 text-xs text-[var(--color-text-muted)]">
+                    <span className="font-mono">{d.commitHash.slice(0, 8)}</span>
+                    <span>{new Date(d.createdAt).toLocaleString()}</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   )
 }
@@ -70,4 +103,20 @@ function StatCard({ label, value, color }: { label: string; value: number; color
       </p>
     </div>
   )
+}
+
+function deployStatusColor(status: string): string {
+  switch (status) {
+    case 'succeeded':
+      return 'text-[var(--color-success)]'
+    case 'failed':
+      return 'text-[var(--color-danger)]'
+    case 'rolled_back':
+      return 'text-[var(--color-warning)]'
+    case 'running':
+    case 'health_checking':
+      return 'text-[var(--color-primary)]'
+    default:
+      return 'text-[var(--color-text-muted)]'
+  }
 }

@@ -53,9 +53,21 @@ export default function StackDetailPage() {
             >
               Version History
             </Link>
+            <Link
+              to={`/stacks/${stack.id}/deploy`}
+              className="text-sm text-[var(--color-primary)] hover:underline"
+            >
+              Deploy
+            </Link>
           </div>
         </div>
         <div className="flex gap-2">
+          <Link
+            to={`/stacks/${stack.id}/deploy`}
+            className="px-3 py-1.5 text-sm bg-[var(--color-primary)] text-white rounded-lg hover:bg-[var(--color-primary-hover)] transition-colors"
+          >
+            Deploy
+          </Link>
           <button
             onClick={() => startStack.mutate(stack.id)}
             disabled={startStack.isPending || stack.status === 'running'}

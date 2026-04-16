@@ -5,7 +5,9 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/axism/composarr/internal/repository"
 	"github.com/axism/composarr/internal/service"
+	ws "github.com/axism/composarr/internal/websocket"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
@@ -14,7 +16,18 @@ import (
 // StaticFS holds the embedded frontend files. Set by main.go when available.
 var StaticFS fs.FS
 
-func NewRouter(stackSvc *service.StackService, gitSvc *service.GitService, diffSvc *service.DiffService) *gin.Engine {
+type RouterDeps struct {
+	StackSvc      *service.StackService
+	GitSvc        *service.GitService
+	DiffSvc       *service.DiffService
+	DeploySvc     *service.DeployService
+	DeployRepo    *repository.DeploymentRepository
+	DeployLogRepo *repository.DeploymentLogRepository
+	HealthRepo    *repository.HealthCheckRepository
+	Hub           *ws.Hub
+}
+
+func NewRouter(deps RouterDeps) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
 
@@ -33,9 +46,11 @@ func NewRouter(stackSvc *service.StackService, gitSvc *service.GitService, diffS
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
-	// API routes
-	stackHandler := NewStackHandler(stackSvc)
-	versionHandler := NewVersionHandler(stackSvc, gitSvc, diffSvc)
+	// Handlers
+	stackHandler := NewStackHandler(deps.StackSvc)
+	versionHandler := NewVersionHandler(deps.StackSvc, deps.GitSvc, deps.DiffSvc)
+	deployHandler := NewDeployHandler(deps.DeploySvc, deps.DeployRepo, deps.DeployLogRepo, deps.HealthRepo)
+	wsHandler := NewWSHandler(deps.Hub)
 
 	v1 := router.Group("/api/v1")
 	{
@@ -53,11 +68,12 @@ func NewRouter(stackSvc *service.StackService, gitSvc *service.GitService, diffS
 			stacks.POST("/:id/start", stackHandler.StartStack)
 			stacks.POST("/:id/stop", stackHandler.StopStack)
 			stacks.POST("/:id/restart", stackHandler.RestartStack)
+			stacks.POST("/:id/deploy", deployHandler.Deploy)
 
 			stacks.GET("/:id/status", stackHandler.GetStatus)
 			stacks.GET("/:id/logs", stackHandler.GetLogs)
 
-			// Version / Git endpoints
+			// Versions / Git
 			stacks.GET("/:id/versions", versionHandler.ListVersions)
 			stacks.GET("/:id/versions/:hash", versionHandler.GetVersion)
 			stacks.GET("/:id/versions/:hash/diff", versionHandler.GetVersionDiff)
@@ -67,6 +83,18 @@ func NewRouter(stackSvc *service.StackService, gitSvc *service.GitService, diffS
 			stacks.POST("/:id/diff", versionHandler.GetWorkingDiff)
 			stacks.GET("/:id/diff/:from/:to", versionHandler.GetDiffBetween)
 		}
+
+		deployments := v1.Group("/deployments")
+		{
+			deployments.GET("", deployHandler.ListDeployments)
+			deployments.GET("/:id", deployHandler.GetDeployment)
+			deployments.GET("/:id/logs", deployHandler.GetDeploymentLogs)
+			deployments.GET("/:id/health", deployHandler.GetDeploymentHealth)
+			deployments.POST("/:id/cancel", deployHandler.CancelDeploy)
+		}
+
+		// WebSocket
+		v1.GET("/ws/events", wsHandler.Events)
 	}
 
 	// Serve frontend (SPA)
