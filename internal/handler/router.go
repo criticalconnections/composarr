@@ -14,7 +14,7 @@ import (
 // StaticFS holds the embedded frontend files. Set by main.go when available.
 var StaticFS fs.FS
 
-func NewRouter(stackSvc *service.StackService) *gin.Engine {
+func NewRouter(stackSvc *service.StackService, gitSvc *service.GitService, diffSvc *service.DiffService) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
 
@@ -35,6 +35,7 @@ func NewRouter(stackSvc *service.StackService) *gin.Engine {
 
 	// API routes
 	stackHandler := NewStackHandler(stackSvc)
+	versionHandler := NewVersionHandler(stackSvc, gitSvc, diffSvc)
 
 	v1 := router.Group("/api/v1")
 	{
@@ -55,6 +56,16 @@ func NewRouter(stackSvc *service.StackService) *gin.Engine {
 
 			stacks.GET("/:id/status", stackHandler.GetStatus)
 			stacks.GET("/:id/logs", stackHandler.GetLogs)
+
+			// Version / Git endpoints
+			stacks.GET("/:id/versions", versionHandler.ListVersions)
+			stacks.GET("/:id/versions/:hash", versionHandler.GetVersion)
+			stacks.GET("/:id/versions/:hash/diff", versionHandler.GetVersionDiff)
+			stacks.POST("/:id/versions/:hash/rollback", versionHandler.Rollback)
+
+			stacks.GET("/:id/diff", versionHandler.GetWorkingDiff)
+			stacks.POST("/:id/diff", versionHandler.GetWorkingDiff)
+			stacks.GET("/:id/diff/:from/:to", versionHandler.GetDiffBetween)
 		}
 	}
 

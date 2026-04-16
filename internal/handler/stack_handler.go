@@ -112,20 +112,22 @@ func (h *StackHandler) GetCompose(c *gin.Context) {
 // PUT /api/v1/stacks/:id/compose
 func (h *StackHandler) UpdateCompose(c *gin.Context) {
 	id := c.Param("id")
-	var req struct {
-		Content string `json:"content"`
-	}
+	var req service.UpdateComposeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := h.stackSvc.UpdateCompose(id, req.Content); err != nil {
+	commitHash, err := h.stackSvc.UpdateCompose(id, req)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "compose file updated"})
+	c.JSON(http.StatusOK, gin.H{
+		"message":    "compose file updated",
+		"commitHash": commitHash,
+	})
 }
 
 // StartStack godoc

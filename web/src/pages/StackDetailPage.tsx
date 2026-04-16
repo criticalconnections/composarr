@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useStack, useStackStatus, useStartStack, useStopStack, useRestartStack, useDeleteStack } from '../hooks/use-stacks'
 import StatusBadge from '../components/stacks/StatusBadge'
 
@@ -40,6 +40,20 @@ export default function StackDetailPage() {
           {stack.description && (
             <p className="text-[var(--color-text-muted)]">{stack.description}</p>
           )}
+          <div className="flex gap-3 mt-3">
+            <Link
+              to={`/stacks/${stack.id}/editor`}
+              className="text-sm text-[var(--color-primary)] hover:underline"
+            >
+              Edit Compose
+            </Link>
+            <Link
+              to={`/stacks/${stack.id}/versions`}
+              className="text-sm text-[var(--color-primary)] hover:underline"
+            >
+              Version History
+            </Link>
+          </div>
         </div>
         <div className="flex gap-2">
           <button

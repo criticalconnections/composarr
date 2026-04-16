@@ -19,13 +19,15 @@ import (
 type StackService struct {
 	repo      *repository.StackRepository
 	dockerSvc *DockerService
+	gitSvc    *GitService
 	cfg       *config.Config
 }
 
-func NewStackService(repo *repository.StackRepository, dockerSvc *DockerService, cfg *config.Config) *StackService {
+func NewStackService(repo *repository.StackRepository, dockerSvc *DockerService, gitSvc *GitService, cfg *config.Config) *StackService {
 	return &StackService{
 		repo:      repo,
 		dockerSvc: dockerSvc,
+		gitSvc:    gitSvc,
 		cfg:       cfg,
 	}
 }
@@ -40,6 +42,11 @@ type UpdateStackRequest struct {
 	Name        *string `json:"name,omitempty"`
 	Description *string `json:"description,omitempty"`
 	AutoUpdate  *bool   `json:"autoUpdate,omitempty"`
+}
+
+type UpdateComposeRequest struct {
+	Content       string `json:"content"`
+	CommitMessage string `json:"commitMessage,omitempty"`
 }
 
 func (s *StackService) List() ([]models.Stack, error) {
@@ -59,10 +66,17 @@ func (s *StackService) Create(req CreateStackRequest) (*models.Stack, error) {
 		return nil, fmt.Errorf("create stack directory: %w", err)
 	}
 
-	// Write the compose file
-	composePath := filepath.Join(stackDir, "docker-compose.yml")
-	if err := os.WriteFile(composePath, []byte(req.ComposeContent), 0644); err != nil {
-		return nil, fmt.Errorf("write compose file: %w", err)
+	// Initialize git repo
+	if _, err := s.gitSvc.InitRepo(slug); err != nil {
+		os.RemoveAll(stackDir)
+		return nil, fmt.Errorf("init git repo: %w", err)
+	}
+
+	// Write the compose file and create the initial commit
+	commitMsg := fmt.Sprintf("Create stack: %s", req.Name)
+	if _, err := s.gitSvc.WriteAndCommit(slug, "docker-compose.yml", []byte(req.ComposeContent), commitMsg); err != nil {
+		os.RemoveAll(stackDir)
+		return nil, fmt.Errorf("commit initial compose: %w", err)
 	}
 
 	now := time.Now().UTC()
@@ -79,7 +93,6 @@ func (s *StackService) Create(req CreateStackRequest) (*models.Stack, error) {
 	}
 
 	if err := s.repo.Create(stack); err != nil {
-		// Clean up directory on failure
 		os.RemoveAll(stackDir)
 		return nil, err
 	}
@@ -123,10 +136,9 @@ func (s *StackService) Delete(ctx context.Context, id string) error {
 		log.Warn().Err(err).Str("stack", stack.Slug).Msg("failed to stop stack during deletion")
 	}
 
-	// Remove the stack's compose directory
-	stackDir := filepath.Join(s.cfg.ReposDir, stack.Slug)
-	if err := os.RemoveAll(stackDir); err != nil {
-		log.Warn().Err(err).Str("dir", stackDir).Msg("failed to remove stack directory")
+	// Remove the stack's compose directory (includes git repo)
+	if err := s.gitSvc.DeleteRepo(stack.Slug); err != nil {
+		log.Warn().Err(err).Str("slug", stack.Slug).Msg("failed to remove stack directory")
 	}
 
 	if err := s.repo.Delete(id); err != nil {
@@ -143,8 +155,7 @@ func (s *StackService) GetCompose(id string) (string, error) {
 		return "", err
 	}
 
-	composePath := filepath.Join(s.cfg.ReposDir, stack.Slug, stack.ComposePath)
-	content, err := os.ReadFile(composePath)
+	content, err := s.gitSvc.GetCurrentFile(stack.Slug, stack.ComposePath)
 	if err != nil {
 		return "", fmt.Errorf("read compose file: %w", err)
 	}
@@ -152,19 +163,47 @@ func (s *StackService) GetCompose(id string) (string, error) {
 	return string(content), nil
 }
 
-func (s *StackService) UpdateCompose(id string, content string) error {
+// UpdateCompose writes a new compose file, commits it to git, and returns the new commit hash.
+func (s *StackService) UpdateCompose(id string, req UpdateComposeRequest) (string, error) {
 	stack, err := s.repo.GetByID(id)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	composePath := filepath.Join(s.cfg.ReposDir, stack.Slug, stack.ComposePath)
-	if err := os.WriteFile(composePath, []byte(content), 0644); err != nil {
-		return fmt.Errorf("write compose file: %w", err)
+	message := req.CommitMessage
+	if strings.TrimSpace(message) == "" {
+		message = "Update compose file"
+	}
+
+	commitHash, err := s.gitSvc.WriteAndCommit(stack.Slug, stack.ComposePath, []byte(req.Content), message)
+	if err != nil {
+		return "", fmt.Errorf("commit compose file: %w", err)
 	}
 
 	stack.UpdatedAt = time.Now().UTC()
-	return s.repo.Update(stack)
+	if err := s.repo.Update(stack); err != nil {
+		return "", err
+	}
+
+	return commitHash, nil
+}
+
+// Rollback creates a new commit with the contents from the target commit.
+func (s *StackService) Rollback(id, targetCommitHash string) (string, error) {
+	stack, err := s.repo.GetByID(id)
+	if err != nil {
+		return "", err
+	}
+
+	commitHash, err := s.gitSvc.RollbackToCommit(stack.Slug, targetCommitHash, stack.ComposePath)
+	if err != nil {
+		return "", err
+	}
+
+	stack.UpdatedAt = time.Now().UTC()
+	s.repo.Update(stack)
+
+	return commitHash, nil
 }
 
 func (s *StackService) Start(ctx context.Context, id string) (string, error) {
@@ -250,6 +289,24 @@ func (s *StackService) Logs(ctx context.Context, id string, service string, tail
 	}
 
 	return s.dockerSvc.Logs(ctx, stack.Slug, service, tail)
+}
+
+// SlugForID returns the slug for a stack ID. Used by handlers that work with version operations.
+func (s *StackService) SlugForID(id string) (string, error) {
+	stack, err := s.repo.GetByID(id)
+	if err != nil {
+		return "", err
+	}
+	return stack.Slug, nil
+}
+
+// ComposePathForID returns the compose filename for a stack ID.
+func (s *StackService) ComposePathForID(id string) (string, error) {
+	stack, err := s.repo.GetByID(id)
+	if err != nil {
+		return "", err
+	}
+	return stack.ComposePath, nil
 }
 
 var nonAlphaRegex = regexp.MustCompile(`[^a-z0-9]+`)
