@@ -12,7 +12,22 @@ A Docker Compose stack lifecycle manager that fills the gap between clicking aro
 - **Real-time UI** — WebSocket-driven deploy timeline, live log streaming, toast notifications for every deploy lifecycle event
 - **Dependency graph** — visualize your entire stack topology as a DAG
 
-## Quick start (Docker)
+## Quick start
+
+Run the installer and pick Docker or a local build when prompted:
+
+```bash
+./install.sh
+```
+
+Non-interactive equivalents:
+
+```bash
+./install.sh --mode=docker --start        # build image + docker compose up -d
+./install.sh --mode=local  --start        # build binary and run it
+```
+
+Or skip the installer and use Docker directly:
 
 ```bash
 docker compose up -d
