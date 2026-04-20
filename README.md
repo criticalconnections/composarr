@@ -133,3 +133,4 @@ All endpoints under `/api/v1`. See `internal/handler/router.go` for the full lis
 ## License
 
 MIT
+"# composarr" 
