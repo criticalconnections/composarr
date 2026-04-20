@@ -121,7 +121,7 @@ func (h *HealthService) runOneCheck(ctx context.Context, deploymentID, stackID, 
 			ServiceName:   c.Service,
 			Status:        status,
 			CheckOutput:   c.Status,
-			CheckedAt:     time.Now().UTC(),
+			CheckedAt:     models.Now(),
 		}
 
 		if err := h.repo.Create(&result); err != nil {

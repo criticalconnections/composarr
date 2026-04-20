@@ -116,7 +116,7 @@ func (d *DeployService) Deploy(stackID string, opts DeployOptions) (string, erro
 		opts.Trigger = TriggerManual
 	}
 
-	now := time.Now().UTC()
+	now := models.Now()
 	deployment := &models.Deployment{
 		ID:             uuid.New().String(),
 		StackID:        stackID,
@@ -293,7 +293,7 @@ func (d *DeployService) attemptRollback(stack *models.Stack, dep *models.Deploym
 	d.appendLog(dep.ID, "warn", fmt.Sprintf("Rolled back successfully (new commit %s)", short(rollbackHash)))
 
 	// Create a separate deployment record for the rollback itself
-	now := time.Now().UTC()
+	now := models.Now()
 	rollbackDep := &models.Deployment{
 		ID:             uuid.New().String(),
 		StackID:        stack.ID,
@@ -316,7 +316,7 @@ func (d *DeployService) updateStatus(dep *models.Deployment, status, errorMessag
 	dep.Status = status
 	dep.ErrorMessage = errorMessage
 	if status == DeploymentStatusSucceeded || status == DeploymentStatusFailed || status == DeploymentStatusRolledBack {
-		now := time.Now().UTC()
+		now := models.Now()
 		dep.CompletedAt = &now
 	}
 	if err := d.deployRepo.UpdateStatus(dep.ID, status, errorMessage); err != nil {
@@ -330,7 +330,7 @@ func (d *DeployService) appendLog(deploymentID, level, message string) {
 		DeploymentID: deploymentID,
 		Level:        level,
 		Message:      message,
-		Timestamp:    time.Now().UTC(),
+		Timestamp:    models.Now(),
 	}
 	if err := d.deployLogRepo.Create(entry); err != nil {
 		log.Warn().Err(err).Msg("failed to write deployment log")

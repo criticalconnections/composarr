@@ -120,7 +120,7 @@ func (s *SchedulerService) CreateSchedule(req CreateScheduleRequest) (*models.Sc
 		return nil, err
 	}
 
-	now := time.Now().UTC()
+	now := models.Now()
 	sched := &models.Schedule{
 		ID:        uuid.New().String(),
 		StackID:   req.StackID,
@@ -166,7 +166,7 @@ func (s *SchedulerService) UpdateSchedule(id string, req UpdateScheduleRequest) 
 	if req.Enabled != nil {
 		sched.Enabled = *req.Enabled
 	}
-	sched.UpdatedAt = time.Now().UTC()
+	sched.UpdatedAt = models.Now()
 
 	if _, err := s.validateCron(sched.CronExpr, sched.Timezone); err != nil {
 		return nil, err
@@ -204,7 +204,7 @@ func (s *SchedulerService) QueueUpdate(req QueueUpdateRequest) (*models.QueuedUp
 	}
 
 	var scheduleID *string
-	var deployAfter *time.Time
+	var deployAfter *models.Time
 
 	if req.ScheduleID != "" {
 		sched, err := s.scheduleRepo.GetByID(req.ScheduleID)
@@ -213,11 +213,12 @@ func (s *SchedulerService) QueueUpdate(req QueueUpdateRequest) (*models.QueuedUp
 		}
 		scheduleID = &req.ScheduleID
 		if next := s.nextWindow(*sched); next != nil {
-			deployAfter = next
+			wrapped := models.NewTime(*next)
+			deployAfter = &wrapped
 		}
 	}
 
-	now := time.Now().UTC()
+	now := models.Now()
 	update := &models.QueuedUpdate{
 		ID:             uuid.New().String(),
 		StackID:        req.StackID,

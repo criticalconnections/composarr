@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/axism/composarr/internal/config"
 	"github.com/axism/composarr/internal/models"
@@ -79,7 +78,7 @@ func (s *StackService) Create(req CreateStackRequest) (*models.Stack, error) {
 		return nil, fmt.Errorf("commit initial compose: %w", err)
 	}
 
-	now := time.Now().UTC()
+	now := models.Now()
 	stack := &models.Stack{
 		ID:          uuid.New().String(),
 		Name:        req.Name,
@@ -116,7 +115,7 @@ func (s *StackService) Update(id string, req UpdateStackRequest) (*models.Stack,
 	if req.AutoUpdate != nil {
 		stack.AutoUpdate = *req.AutoUpdate
 	}
-	stack.UpdatedAt = time.Now().UTC()
+	stack.UpdatedAt = models.Now()
 
 	if err := s.repo.Update(stack); err != nil {
 		return nil, err
@@ -180,7 +179,7 @@ func (s *StackService) UpdateCompose(id string, req UpdateComposeRequest) (strin
 		return "", fmt.Errorf("commit compose file: %w", err)
 	}
 
-	stack.UpdatedAt = time.Now().UTC()
+	stack.UpdatedAt = models.Now()
 	if err := s.repo.Update(stack); err != nil {
 		return "", err
 	}
@@ -200,7 +199,7 @@ func (s *StackService) Rollback(id, targetCommitHash string) (string, error) {
 		return "", err
 	}
 
-	stack.UpdatedAt = time.Now().UTC()
+	stack.UpdatedAt = models.Now()
 	s.repo.Update(stack)
 
 	return commitHash, nil

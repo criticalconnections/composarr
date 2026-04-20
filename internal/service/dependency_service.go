@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/axism/composarr/internal/models"
 	"github.com/axism/composarr/internal/repository"
@@ -68,7 +67,7 @@ func (d *DependencyService) AddDependency(stackID, dependsOnID, depType string) 
 		StackID:        stackID,
 		DependsOnID:    dependsOnID,
 		DependencyType: depType,
-		CreatedAt:      time.Now().UTC(),
+		CreatedAt:      models.Now(),
 	}
 
 	if err := d.depRepo.Create(dep); err != nil {
