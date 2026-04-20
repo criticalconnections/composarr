@@ -11,6 +11,9 @@
 /vendor/
 go.work
 
+# Installer-vendored toolchains (Go/Node downloaded by install.sh)
+/.vendor/
+
 # Frontend
 web/node_modules/
 web/dist/
